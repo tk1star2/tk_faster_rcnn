@@ -117,6 +117,8 @@ if __name__ == '__main__':
     sess.run(tf.global_variables_initializer())
     print('Loaded.')
 
+
+  # net = res101, imdb, filename, ....output_dir=output/res101/KITTI_trainval/default, tb_dir=tesorboard/res101/KITTI_tranval/default, pretrained_model='data/imagenet_weights/res101.ckpt', max_iters=100000
   test_net(sess, net, imdb, filename, max_per_image=args.max_per_image)
 
   sess.close()

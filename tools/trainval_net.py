@@ -133,7 +133,9 @@ if __name__ == '__main__':
     net = mobilenetv1()
   else:
     raise NotImplementedError
-    
+
+
+  # net = res101, imdb, roidb, valroidb, output_dir=output/res101/KITTI_trainval/default, tb_dir=tesorboard/res101/KITTI_tranval/default, pretrained_model='data/imagenet_weights/res101.ckpt', max_iters=100000     
   train_net(net, imdb, roidb, valroidb, output_dir, tb_dir,
             pretrained_model=args.weight,
             max_iters=args.max_iters)

@@ -12,120 +12,58 @@ import os
 import pickle
 import numpy as np
 
-#def parse_rec(filename):
-#
-#  print('oh....?file name is {}'.format(filename))
-#
-#  """ Parse a PASCAL VOC xml file """
-#  tree = ET.parse(filename)
-#  objects = []
-#  for obj in tree.findall('object'):
-#    obj_struct = {}
-#    obj_struct['name'] = obj.find('name').text
-#    obj_struct['pose'] = obj.find('pose').text
-#    obj_struct['truncated'] = int(obj.find('truncated').text)
-#    obj_struct['difficult'] = int(obj.find('difficult').text)
-#    bbox = obj.find('bndbox')
-#    obj_struct['bbox'] = [int(bbox.find('xmin').text),
-#                          int(bbox.find('ymin').text),
-#                          int(bbox.find('xmax').text),
-#                          int(bbox.find('ymax').text)]
-#    objects.append(obj_struct)
-#
-#  return objects
+def parse_rec(filename):
+  """ Parse a PASCAL VOC xml file """
+  tree = ET.parse(filename)
+  objects = []
+  for obj in tree.findall('object'):
+    obj_struct = {}
+    obj_struct['name'] = obj.find('name').text
+    obj_struct['pose'] = obj.find('pose').text
+    obj_struct['truncated'] = int(obj.find('truncated').text)
+    obj_struct['difficult'] = int(obj.find('difficult').text)
+    bbox = obj.find('bndbox')
+    obj_struct['bbox'] = [int(bbox.find('xmin').text),
+                          int(bbox.find('ymin').text),
+                          int(bbox.find('xmax').text),
+                          int(bbox.find('ymax').text)]
+    objects.append(obj_struct)
 
-def parse_rec(filename) :
-        with open(filename) as f:
-            data = f.read()
-        import re
-        objs = re.findall('\(\d+, \d+\)[\s\-]+\(\d+, \d+\)', data)
-        objs2 = re.findall(r'(\(\"[\w]+\"\))',data)
-
-        num_objs = len(objs)
-	
-        boxes = np.zeros((num_objs, 4), dtype=np.uint16)
-	gt_classes = {}
-        #gt_classes = np.zeros((num_objs), dtype=np.int32)
-        #overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
-
-	
-        # Load object bounding boxes into a data frame.
-        for ix, obj in enumerate(objs):
-            # Make pixel indexes 0-based
-            coor = re.findall('\d+', obj)
-            x1 = float(coor[0])
-            y1 = float(coor[1])
-            x2 = float(coor[2])
-            y2 = float(coor[3])
-            boxes[ix, :] = [x1, y1, x2, y2]
-
-        for ix2, obj2 in enumerate(objs2):
-            class_is = obj2[2:-2]
-
-            #print(obj2[2:-2])
-            #cls = self._class_to_ind[class_is]
-            cls = class_is
-	    #print('first check {}'.format(cls))
-	    #gt_classes[ix2, :] = cls
-	    gt_classes[str(ix2)] = cls
-	    #print('lets check {}'.format(gt_classes[str(ix2)]))
-            #overlaps[ix2, cls] = 1.0
-
-        #overlaps = scipy.sparse.csr_matrix(overlaps)
+  return objects
 
 
-	objects = []
-	for index in range(num_objs):
-	    obj_struct = {}
-	    obj_struct['name'] =  gt_classes[str(index)]
-	    obj_struct['pose'] =  'none'
-	    obj_struct['truncated'] = 1
-	    obj_struct['difficult'] = 0
-	    obj_struct['bbox'] = [int(boxes[index, 0]),int(boxes[index, 1]), int(boxes[index, 2]), int(boxes[index, 3])]
-	    objects.append(obj_struct)
-	return objects
-
-#---------------------------------------------------------------
-def voc_ap(rec, prec):
+def voc_ap(rec, prec, use_07_metric=False):
   """ ap = voc_ap(rec, prec, [use_07_metric])
   Compute VOC AP given precision and recall.
   If use_07_metric is true, uses the
   VOC 07 11 point method (default:False).
   """
-  #if use_07_metric:
+  if use_07_metric:
     # 11 point metric
-  ap = 0.
-  for t in np.arange(0., 1.1, 0.1):
-    if np.sum(rec >= t) == 0:
-      p = 0
-    else:
-      p = np.max(prec[rec >= t])
-    ap = ap + p / 11.
-  #else:
-
-
+    ap = 0.
+    for t in np.arange(0., 1.1, 0.1):
+      if np.sum(rec >= t) == 0:
+        p = 0
+      else:
+        p = np.max(prec[rec >= t])
+      ap = ap + p / 11.
+  else:
     # correct AP calculation
     # first append sentinel values at the end
-  #  mrec = np.concatenate(([0.], rec, [1.]))
-  #  mpre = np.concatenate(([0.], prec, [0.]))
+    mrec = np.concatenate(([0.], rec, [1.]))
+    mpre = np.concatenate(([0.], prec, [0.]))
 
     # compute the precision envelope
-  #  for i in range(mpre.size - 1, 0, -1):
-  #    mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
+    for i in range(mpre.size - 1, 0, -1):
+      mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
 
     # to calculate area under PR curve, look for points
     # where X axis (recall) changes value
-  #  i = np.where(mrec[1:] != mrec[:-1])[0]
+    i = np.where(mrec[1:] != mrec[:-1])[0]
 
     # and sum (\Delta recall) * prec
-  #  ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
+    ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
   return ap
-#------------------------------------------------------------
-#detpath = filename
-#annopath = data/Annotations
-#imagesetfile = data/ImageSets
-#classname = cls
-#cachedir = annotations_cache
 
 
 def voc_eval(detpath,
@@ -133,7 +71,9 @@ def voc_eval(detpath,
              imagesetfile,
              classname,
              cachedir,
-             ovthresh=0.5):
+             ovthresh=0.5,
+             use_07_metric=False,
+             use_diff=False):
   """rec, prec, ap = voc_eval(detpath,
                               annopath,
                               imagesetfile,
@@ -159,8 +99,6 @@ def voc_eval(detpath,
   # assumes imagesetfile is a text file with each line an image name
   # cachedir caches the annotations in a pickle file
 
-  print('detpath is {}........................'.format(detpath))
-
   # first load gt
   if not os.path.isdir(cachedir):
     os.mkdir(cachedir)
@@ -169,21 +107,11 @@ def voc_eval(detpath,
   with open(imagesetfile, 'r') as f:
     lines = f.readlines()
   imagenames = [x.strip() for x in lines]
-  #print('images names print : {}'.format(imagenames))  
-
 
   if not os.path.isfile(cachefile):
     # load annotations
     recs = {}
     for i, imagename in enumerate(imagenames):
-
-#detpath = filename = 
-#annopath = data/Annotations
-#imagesetfile = data/ImageSets
-#classname = cls
-#cachedir = annotations_cache
-
-      # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!data/Annotations/
       recs[imagename] = parse_rec(annopath.format(imagename))
       if i % 100 == 0:
         print('Reading annotation for {:d}/{:d}'.format(
@@ -200,24 +128,16 @@ def voc_eval(detpath,
       except:
         recs = pickle.load(f, encoding='bytes')
 
-
-  #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   # extract gt objects for this class
   class_recs = {}
   npos = 0
   for imagename in imagenames:
-    # if it is same with classname
     R = [obj for obj in recs[imagename] if obj['name'] == classname]
     bbox = np.array([x['bbox'] for x in R])
-
-
-    #if use_diff:
-    difficult = np.array([False for x in R]).astype(np.bool)
-    #else:
-    #  difficult = np.array([x['difficult'] for x in R]).astype(np.bool)
-
-
-
+    if use_diff:
+      difficult = np.array([False for x in R]).astype(np.bool)
+    else:
+      difficult = np.array([x['difficult'] for x in R]).astype(np.bool)
     det = [False] * len(R)
     npos = npos + sum(~difficult)
     class_recs[imagename] = {'bbox': bbox,
@@ -289,6 +209,6 @@ def voc_eval(detpath,
   # avoid divide by zero in case the first detection matches a difficult
   # ground truth
   prec = tp / np.maximum(tp + fp, np.finfo(np.float64).eps)
-  ap = voc_ap(rec, prec)
+  ap = voc_ap(rec, prec, use_07_metric)
 
   return rec, prec, ap

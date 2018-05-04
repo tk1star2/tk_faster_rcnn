@@ -1,0 +1,19 @@
+# PASCAL Annotation Version 1.00
+
+Image filename : "000002.txt"
+Image size (X x Y x C) : 1242 x 375 x 3
+Database : "KITTI Database"
+Objects with ground truth : 2 { "Misc" "Car" }
+
+# Note that there might be other objects in the image
+# for which ground truth data has not been provided.
+
+# Top left pixel co-ordinates : (0, 0)
+
+# Details for object 1 ("car")
+# Center point -- not available in other PASCAL databases -- refers
+# to person head center
+Original label for object 1 "car" : "car"
+Center point on object 1 "car" (X, Y) : (721, 185)
+Bounding box for object 1 "car" (Xmin, Ymin) - (Xmax, Ymax) : (657, 190) - (700, 223)
+

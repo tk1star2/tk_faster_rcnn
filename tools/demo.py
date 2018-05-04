@@ -30,47 +30,66 @@ import argparse
 from nets.vgg16 import vgg16
 from nets.resnet_v1 import resnetv1
 
+from PIL import Image, ImageDraw
+
+
 CLASSES = ('__background__',
-           'aeroplane', 'bicycle', 'bird', 'boat',
-           'bottle', 'bus', 'car', 'cat', 'chair',
-           'cow', 'diningtable', 'dog', 'horse',
-           'motorbike', 'person', 'pottedplant',
-           'sheep', 'sofa', 'train', 'tvmonitor')
+           'car', 'pedestrian', 'cyclist')
 
-NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_110000.ckpt',)}
-DATASETS= {'pascal_voc': ('voc_2007_trainval',),'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',)}
+NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_100000.ckpt',)}
+DATASETS= {'pascal_voc': ('voc_2007_trainval',),'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',), 'KITTI':('KITTI_trainval',)}
 
-def vis_detections(im, class_name, dets, thresh=0.5):
+def vis_detections(im, class_name, dets, im_file, thresh=0.5):
+    assert os.path.exists(im_file), \
+	'image file directory is wrong : {}'.format(im_file)
+    im_file_next = os.path.join(im_file[:-4]+'_output.jpg')
+    print('imfile and imnext is {}, {}'.format(im_file, im_file_next))
+
+
     """Draw detected bounding boxes."""
     inds = np.where(dets[:, -1] >= thresh)[0]
     if len(inds) == 0:
         return
 
-    im = im[:, :, (2, 1, 0)]
-    fig, ax = plt.subplots(figsize=(12, 12))
-    ax.imshow(im, aspect='equal')
+    
+    img = Image.open(im_file)
+    draw = ImageDraw.Draw(img)
+    width, height = img.size
+
+    #im = im[:, :, (2, 1, 0)]
+    #fig, ax = plt.subplots(figsize=(12, 12))
+    #ax.imshow(im, aspect='equal')
     for i in inds:
         bbox = dets[i, :4]
         score = dets[i, -1]
 
-        ax.add_patch(
-            plt.Rectangle((bbox[0], bbox[1]),
-                          bbox[2] - bbox[0],
-                          bbox[3] - bbox[1], fill=False,
-                          edgecolor='red', linewidth=3.5)
-            )
-        ax.text(bbox[0], bbox[1] - 2,
-                '{:s} {:.3f}'.format(class_name, score),
-                bbox=dict(facecolor='blue', alpha=0.5),
-                fontsize=14, color='white')
+        #ax.add_patch(
+        #    plt.Rectangle((bbox[0], bbox[1]),
+        #                  bbox[2] - bbox[0],
+        #                  bbox[3] - bbox[1], fill=False,
+        #                  edgecolor='red', linewidth=3.5)
+        #    )
+	print('bbox 0 : {}, 1 : {}, 2 : {}, 3: {}'.format(bbox[0],bbox[1],bbox[2],bbox[3]))
+	xmin = int(bbox[0])
+	ymin = int(bbox[1])
+	xmax = int(bbox[2])
+	ymax = int(bbox[3])
+	draw.rectangle([xmin,ymin,xmax,ymax],outline=(255,0,0))
+	draw.text([xmin,ymin], class_name, (0,0,255))
+    img.save(im_file_next)
 
-    ax.set_title(('{} detections with '
-                  'p({} | box) >= {:.1f}').format(class_name, class_name,
-                                                  thresh),
-                  fontsize=14)
-    plt.axis('off')
-    plt.tight_layout()
-    plt.draw()
+        #ax.text(bbox[0], bbox[1] - 2,
+        #        '{:s} {:.3f}'.format(class_name, score),
+        #        bbox=dict(facecolor='blue', alpha=0.5),
+        #        fontsize=14, color='white')
+
+    #ax.set_title(('{} detections with '
+    #              'p({} | box) >= {:.k1f}').format(class_name, class_name,
+    #                                              thresh),
+    #              fontsize=14)
+    #plt.axis('off')
+    #plt.tight_layout()
+    #plt.draw()
 
 def demo(sess, net, image_name):
     """Detect object classes in an image using pre-computed object proposals."""
@@ -91,13 +110,15 @@ def demo(sess, net, image_name):
     NMS_THRESH = 0.3
     for cls_ind, cls in enumerate(CLASSES[1:]):
         cls_ind += 1 # because we skipped background
-        cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
+        cls_boxes = boxes[:, 4*cls_ind : 4*(cls_ind + 1)]
+
+	#print("cls_indx is {}".format(cls_ind))
         cls_scores = scores[:, cls_ind]
         dets = np.hstack((cls_boxes,
                           cls_scores[:, np.newaxis])).astype(np.float32)
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
-        vis_detections(im, cls, dets, thresh=CONF_THRESH)
+        vis_detections(im, cls, dets, im_file, thresh=CONF_THRESH)
 
 def parse_args():
     """Parse input arguments."""
@@ -117,6 +138,8 @@ if __name__ == '__main__':
     # model path
     demonet = args.demo_net
     dataset = args.dataset
+
+    print('dataset[0] is {}'.format(DATASETS[dataset][0]))
     tfmodel = os.path.join('output', demonet, DATASETS[dataset][0], 'default',
                               NETS[demonet][0])
 
@@ -138,7 +161,7 @@ if __name__ == '__main__':
         net = resnetv1(num_layers=101)
     else:
         raise NotImplementedError
-    net.create_architecture("TEST", 21,
+    net.create_architecture("TEST", 4,
                           tag='default', anchor_scales=[8, 16, 32])
     saver = tf.train.Saver()
     saver.restore(sess, tfmodel)
@@ -152,4 +175,4 @@ if __name__ == '__main__':
         print('Demo for data/demo/{}'.format(im_name))
         demo(sess, net, im_name)
 
-    plt.show()
+    #plt.show()
